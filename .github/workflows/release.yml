@@ -1,0 +1,71 @@
+name: Build NetPatrol releases
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.names.outputs.version }}
+      date: ${{ steps.names.outputs.date }}
+    steps:
+      - id: names
+        env:
+          VERSION: ${{ github.event_name == 'push' && github.ref_name || 'v0.0.0' }}
+        run: |
+          [[ $VERSION =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "date=$(TZ=Asia/Shanghai date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: Build and check release files
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+          RELEASE_DATE: ${{ needs.metadata.outputs.date }}
+        run: bash deploy/build-release.sh "$VERSION" "$RELEASE_DATE" "$RUNNER_TEMP/release"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netpatrol-${{ matrix.runner }}
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: netpatrol-*
+          merge-multiple: true
+          path: release
+      - name: Publish verified files
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          sha256sum -c -- *.sha256
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "NetPatrol $TAG" -- *

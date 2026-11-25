@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    if ! getent group netpatrol >/dev/null; then
+        addgroup --system netpatrol
+    fi
+    if ! getent passwd netpatrol >/dev/null; then
+        adduser --system --ingroup netpatrol --home /var/lib/netpatrol --no-create-home netpatrol
+    fi
+fi
+#DEBHELPER#
+if [ "$1" = configure ] && [ -n "${2:-}" ] && [ -d /run/systemd/system ] &&
+    systemctl is-active --quiet netpatrol.service; then
+    deb-systemd-invoke restart netpatrol.service
+fi

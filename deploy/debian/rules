@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_install:
+	install -Dm755 payload/netpatrol debian/netpatrol/usr/bin/netpatrol
+	install -Dm600 payload/netpatrol.env.example debian/netpatrol/etc/netpatrol/netpatrol.env
+	install -d debian/netpatrol/usr/share/doc/netpatrol
+	cp -R payload/licenses payload/*.md debian/netpatrol/usr/share/doc/netpatrol/
+	sed 's|/usr/local/bin/netpatrol|/usr/bin/netpatrol|' payload/netpatrol.service >debian/netpatrol.service
+
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0600 debian/netpatrol/etc/netpatrol/netpatrol.env
+
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start

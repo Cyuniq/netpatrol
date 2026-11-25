@@ -83,7 +83,32 @@ sudo bash netpatrol-kylin-v10-x86_64-20261125-v1.0.0.run
 
 在构建机执行 `python deploy/package.py --windows-offline --version v1.0.0` 可生成 `netpatrol-windows-x64-YYYYMMDD-v1.0.0.zip` 及同名 SHA-256 校验文件。
 
-## Debian／Ubuntu 部署
+## GitHub 自动发版
+
+向 GitHub 推送形如 `v1.2.3` 的版本标签后，GitHub Actions 在 AMD64 和 ARM64 上运行 Go 测试，构建下列附件并校验 SHA-256。全部成功后自动创建 Release。安装包和二进制只作为 Release 附件分发。手动运行同一工作流会生成版本号为 `v0.0.0` 的测试产物，供 Actions 页面下载。
+
+| 平台 | Release 附件 |
+| --- | --- |
+| Windows x64 | 离线安装 ZIP |
+| 银河麒麟 V10 x86_64 | 自解压安装包 `.run` |
+| Debian 13 AMD64、ARM64 | 每种架构一个原生 `.deb` |
+| 通用 Linux AMD64、ARM64 | 每种架构一个可直接运行的静态二进制，以及含相同程序、部署示例和许可证的 `.tar.gz` |
+
+所有附件都有同名 `.sha256`。直接下载的 Linux 二进制需先执行 `chmod +x 文件名`。本地仅需麒麟安装包时，使用上文的 `--kylin-offline` 命令即可。
+
+## Debian 13 软件包安装
+
+运行 `dpkg --print-architecture` 查看本机架构，下载对应的 `.deb`。在下载目录执行以下命令，将文件名替换为实际名称：
+
+```sh
+sudo apt install ./netpatrol-debian13-amd64-YYYYMMDD-v1.2.3.deb
+sudoedit /etc/netpatrol/netpatrol.env
+sudo systemctl enable --now netpatrol.service
+```
+
+首次启动前在配置文件中设置 `NETPATROL_ADMIN_PASSWORD`。服务默认监听 `127.0.0.1:8080`，数据库位于 `/var/lib/netpatrol/netpatrol.db`。同一软件包可用 `apt install ./新版本文件名.deb` 升级。
+
+## 通用 Linux 归档部署
 
 运行 `python3 deploy/package.py` 生成 Linux amd64 发布包。可用 `--arch arm64` 生成 arm64 版本。包内含二进制、systemd unit、环境配置示例和依赖许可证。
 
