@@ -1,0 +1,4 @@
+# The embedded download is a byte-for-byte UTF-8 BOM / CRLF CSV.
+internal/web/static/template.csv -text
+*.sh text eol=lf
+deploy/debian/* text eol=lf

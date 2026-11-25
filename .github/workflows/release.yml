@@ -30,7 +30,7 @@ jobs:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: actions/setup-go@v6
@@ -42,7 +42,7 @@ jobs:
           VERSION: ${{ needs.metadata.outputs.version }}
           RELEASE_DATE: ${{ needs.metadata.outputs.date }}
         run: bash deploy/build-release.sh "$VERSION" "$RELEASE_DATE" "$RUNNER_TEMP/release"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: netpatrol-${{ matrix.runner }}
           path: ${{ runner.temp }}/release/
@@ -56,7 +56,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: netpatrol-*
           merge-multiple: true
