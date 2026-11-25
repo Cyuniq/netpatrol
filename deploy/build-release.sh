@@ -41,7 +41,7 @@ docker run --rm -v "$work:/build" -w /build debian:13 bash -euc '
     cd /tmp/pkg/source
     DEB_BUILD_OPTIONS=nostrip dpkg-buildpackage -b -us -uc
     cd /tmp/pkg
-    dpkg -i ./netpatrol_*.deb
+    apt-get install -qy --no-install-recommends ./netpatrol_*.deb
     test "$(dpkg-query -W -f="\${Architecture}" netpatrol)" = "$1"
     test "$(stat -c %a /etc/netpatrol/netpatrol.env)" = 600
     test -f /usr/lib/systemd/system/netpatrol.service
