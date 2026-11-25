@@ -1,0 +1,32 @@
+{{define "head"}}<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"historyCacheSize":0}'>
+<title>{{.}} · 网巡 NetPatrol</title>
+<link rel="stylesheet" href="/static/app.css"><script defer src="/static/htmx.min.js"></script>
+</head><body>
+<header class="top"><div class="wrap top-inner">
+<a class="brand" href="/devices">网巡 <span>NetPatrol</span></a>
+<nav aria-label="主导航"><a href="/devices">设备</a><a href="/paths">路径检测</a><a href="/areas">区域</a><a href="/events">状态记录</a><a href="/settings">探测设置</a></nav>
+</div></header><main class="wrap">{{end}}
+{{define "foot"}}</main></body></html>{{end}}
+
+{{define "area-counts"}}
+<div class="area-grid">
+{{range .Stats}}{{$area := .}}<article class="card panel">
+<h3><a href="{{$.AreaURL .ID ""}}">{{.Name}}</a></h3>
+<div class="counts">{{range $.States}}
+<a href="{{$.AreaURL $area.ID .}}" class="count {{.}}"><strong>{{index $area.Counts .}}</strong>{{state .}}</a>
+{{end}}</div></article>
+{{else}}<p class="muted">暂无区域，可在区域管理中添加。</p>{{end}}
+</div>{{end}}
+
+{{define "probe-result"}}<span {{if .Detail}}title="{{.Detail}}"{{end}}>{{result .}}</span>{{end}}
+{{define "event-table"}}
+<div class="table-wrap"><table><thead><tr><th>时间</th><th>设备</th><th>区域</th><th>目标</th><th>状态变化</th><th>Ping</th><th>TCP</th></tr></thead>
+<tbody>{{range .}}<tr><td>{{when .At}}</td><td><a href="/devices/{{.DeviceID}}">{{.DeviceName}}</a></td><td>{{.AreaName}}</td>
+<td class="mono">{{.Round.Target.IP}} / {{.Round.Target.Port}}</td>
+<td>{{if .Previous}}{{state .Previous}} → {{end}}<span class="status {{.Current}}">{{state .Current}}</span></td>
+<td>{{template "probe-result" .Round.Ping}}</td><td>{{template "probe-result" .Round.TCP}}</td></tr>
+{{else}}<tr><td colspan="7" class="empty">暂无状态记录</td></tr>{{end}}</tbody></table></div>
+{{end}}

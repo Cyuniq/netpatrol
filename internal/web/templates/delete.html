@@ -1,0 +1,19 @@
+{{define "delete"}}
+{{template "head" "确认删除"}}
+<div class="page-heading"><h1>删除{{.Kind}}</h1></div>
+<section class="card panel">
+  <h2>{{.Name}} {{if .Details}}<span class="mono">{{.Details}}</span>{{end}}</h2>
+  {{if .Blocked}}
+    <p class="notice" role="alert">{{.Blocked}}</p>
+    <div class="actions"><a class="button" href="{{.BlockingLink}}">查看区域设备</a><a href="{{.Back}}">返回</a></div>
+  {{else}}
+    <p>{{.Consequence}}</p>
+    <form action="{{.Submit}}" method="post" class="actions">
+      <input type="hidden" name="confirm" value="yes">
+      <button class="button danger" type="submit">确认删除</button>
+      <a class="button" href="{{.Back}}">取消</a>
+    </form>
+  {{end}}
+</section>
+{{template "foot"}}
+{{end}}

@@ -1,0 +1,115 @@
+{{define "paths"}}
+{{template "head" "路径检测"}}
+<div class="page-heading"><h1>路径检测</h1></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>名称</th><th>目标 IP</th><th>持续检测</th><th>间隔</th><th>下次检测</th><th>操作</th></tr></thead>
+  <tbody>{{range .Paths}}<tr>
+    <td><a href="/paths/{{.ID}}">{{.Name}}</a></td><td class="mono">{{.Address}}</td>
+    <td>{{if .Enabled}}已启用{{else}}未启用{{end}}</td>
+    <td>{{.IntervalSeconds}} 秒</td><td>{{when .NextCheck}}</td>
+    <td><div class="actions nowrap"><a href="/paths/{{.ID}}#edit-path" aria-label="修改路径 {{.Name}}">修改</a><a href="/paths/{{.ID}}/delete" class="action-danger" aria-label="删除路径 {{.Name}}">删除</a></div></td>
+  </tr>{{else}}<tr><td colspan="6" class="empty">暂无路径目标</td></tr>{{end}}</tbody>
+</table></div>
+<section class="card panel path-panel">
+  <h2>添加路径目标</h2>
+  {{if .Error}}<p class="notice" role="alert">{{.Error}}</p>{{end}}
+  <form action="/paths" method="post" class="form-grid">
+    {{template "path-fields" .Edit}}
+    <div><button class="button primary" type="submit">添加目标</button></div>
+  </form>
+</section>
+{{template "foot"}}
+{{end}}
+
+{{define "path"}}
+{{template "head" "路径检测"}}
+<div class="page-heading"><h1>{{.Watch.Name}}</h1><a href="/paths">返回路径检测</a></div>
+<section class="card panel" id="edit-path">
+  <div class="section-heading path-edit-heading"><h2>修改路径目标</h2><a href="/paths/{{.Watch.ID}}/delete" class="action-danger">删除路径</a></div>
+  {{if .Error}}<p class="notice" role="alert">{{.Error}}</p>{{end}}
+  <form action="/paths/{{.Watch.ID}}" method="post" class="form-grid">
+    {{template "path-fields" .Edit}}
+    <div><button class="button" type="submit">保存设置</button></div>
+  </form>
+</section>
+{{template "manual-path" .}}
+{{template "latency" (printf "/paths/%d/latency" .Watch.ID)}}
+<section class="card panel path-panel" aria-label="持续路径检测">
+  <h2>持续路径检测</h2>
+  {{template "path-watch-results" .Watch}}
+</section>
+{{template "foot"}}
+{{end}}
+
+{{define "path-fields"}}
+  <label>名称<input name="name" value="{{.Name}}" placeholder="留空则使用目标 IP"></label>
+  <label>目标 IP<input name="address" value="{{.Address}}" placeholder="192.0.2.1 或 2001:db8::1" required spellcheck="false"></label>
+  <label>检查间隔（秒）<input type="number" name="interval" min="60" max="86400" step="1" required value="{{.IntervalSeconds}}"></label>
+  <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}>启用持续检测</label>
+{{end}}
+
+{{define "manual-path"}}
+<section id="manual-path" class="card panel path-panel" aria-label="手动路径检测">
+  <div class="section-heading">
+    <h2>手动路径检测</h2>
+    <form action="/paths/{{.Watch.ID}}/probe" method="post"
+      hx-post="/paths/{{.Watch.ID}}/probe" hx-target="#manual-path" hx-swap="outerHTML"
+      hx-disabled-elt="find button" hx-indicator="#path-progress">
+      <button class="button" type="submit">立即检测</button>
+    </form>
+  </div>
+  <p class="muted">从网巡服务器到 {{.Watch.Address}}，最多 24 跳。每跳采样 3 次，每次等待最多 1 秒。</p>
+  <p id="path-progress" class="path-progress" role="status">正在检测路径…</p>
+  {{with .Manual}}
+    {{if .Message}}<p class="notice" role="status">{{.Message}}</p>{{end}}
+    {{if .Result.Hops}}
+      <p role="status">{{if .Result.Reached}}已到达目标{{else}}未到达目标{{end}} · {{when .Started}}</p>
+      {{template "path-hops" .Result.Hops}}
+    {{end}}
+  {{end}}
+</section>
+{{end}}
+
+{{define "path-watch-results"}}
+<div id="path-watch-results" {{if .Enabled}}hx-get="/paths/{{.ID}}/results" hx-trigger="every 10s" hx-swap="outerHTML"{{end}}>
+  {{if .Enabled}}
+    <p class="muted">已启用 · {{if .NextCheck.IsZero}}等待首次检测{{else}}计划下次检测 {{when .NextCheck}}{{end}}</p>
+  {{else}}
+    <p class="muted">未启用</p>
+  {{end}}
+  {{with .Latest}}
+    <p><strong>最近一次检测</strong> {{when .Completed}} · {{if .Result.Reached}}已到达目标{{else}}未到达目标{{end}}</p>
+    {{if .Message}}<p class="notice">{{.Message}}</p>{{end}}
+    {{if .Result.Hops}}{{template "path-hops" .Result.Hops}}{{end}}
+  {{end}}
+  {{if .Changes}}
+  <h3>近期路径变化</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>时间</th><th>目标</th><th>结果</th><th>逐跳地址</th></tr></thead>
+    <tbody>{{range .Changes}}<tr>
+      <td>{{when .Completed}}</td><td class="mono">{{.Address}}</td>
+      <td>{{if .Result.Reached}}已到达目标{{else}}未到达目标{{end}}</td>
+      <td>{{range $index, $hop := .Result.Hops}}{{if $index}} → {{end}}{{range $i, $address := $hop.Addresses}}{{if $i}} / {{end}}{{$address}}{{else}}*{{end}}{{else}}—{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{end}}
+</div>
+{{end}}
+
+{{define "path-hops"}}
+<div class="table-wrap"><table>
+  <thead><tr><th>跳数</th><th>回应地址</th><th>发送／回应</th><th>未回应率</th><th>最近延迟</th><th>平均延迟</th><th>最小延迟</th><th>最大延迟</th><th>结果</th></tr></thead>
+  <tbody>{{range .}}{{$stats := .Stats}}<tr>
+    <td>{{.Number}}</td><td class="mono">{{range .Addresses}}<div>{{.}}</div>{{else}}—{{end}}</td>
+    <td>{{if $stats.Sent}}{{$stats.Sent}} / {{$stats.Replies}}{{else}}—{{end}}</td>
+    <td>{{if $stats.Observed}}{{printf "%.1f%%" $stats.LossPercent}}{{else}}—{{end}}</td>
+    <td>{{if $stats.Replies}}{{rtt $stats.Last}}{{else if and (not .Attempts) .Address.IsValid}}{{rtt .Result.RTT}}{{else}}—{{end}}</td>
+    <td>{{if $stats.Replies}}{{rtt $stats.Average}}{{else}}—{{end}}</td>
+    <td>{{if $stats.Replies}}{{rtt $stats.Best}}{{else}}—{{end}}</td>
+    <td>{{if $stats.Replies}}{{rtt $stats.Worst}}{{else}}—{{end}}</td>
+    <td>{{if eq .Result.Outcome "hop_reply"}}中间节点回应{{else if eq .Result.Outcome "passed"}}目标回应{{else if eq .Result.Outcome "timeout"}}未收到回应{{else}}{{result .Result}}{{with .Result.Detail}}<small>{{.}}</small>{{end}}{{end}}
+    {{if lt $stats.Observed $stats.Sent}}<small>部分采样未完成</small>{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+<p class="muted">中间节点可能对 ICMP 回应限速或过滤，结合后续跳和目标的回应判断。</p>
+{{end}}

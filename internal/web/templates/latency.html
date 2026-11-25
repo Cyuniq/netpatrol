@@ -1,0 +1,28 @@
+{{define "latency"}}
+<section id="latency-history" class="card panel latency-panel" data-url="{{.}}" data-server-now="{{nowMillis}}">
+  <h2>延迟趋势</h2>
+  <form class="latency-controls" hidden>
+    <label>时间范围<select name="range">
+      <option value="15">近 15 分钟</option>
+      <option value="60" selected>近 1 小时</option>
+      <option value="1440">近 24 小时</option>
+      <option value="10080">近 7 天</option>
+      <option value="43200">近 30 天</option>
+      <option value="relative">自定义最近时长</option>
+      <option value="fixed">固定起止时间</option>
+    </select></label>
+    <label data-relative hidden>最近<input type="number" name="amount" value="2" min="1" step="1"></label>
+    <label data-relative hidden>单位<select name="unit"><option value="60">小时</option><option value="1440">天</option><option value="1">分钟</option></select></label>
+    <label data-fixed hidden>开始时间<input type="datetime-local" name="from"></label>
+    <label data-fixed hidden>结束时间<input type="datetime-local" name="to"></label>
+    <label data-hop hidden>观察对象<select name="hop"><option value="">目标端</option></select></label>
+    <button class="button" type="submit">查看趋势</button>
+  </form>
+  <p class="muted" role="status" data-summary></p>
+  <p class="notice" role="alert" data-error hidden></p>
+  <div class="latency-chart" role="img" aria-label="探测延迟与未回应趋势图（延迟单位毫秒）" hidden></div>
+  <noscript><p class="notice">请启用 JavaScript 以查看延迟趋势。</p></noscript>
+</section>
+<script defer src="/static/echarts.min.js"></script>
+<script defer src="/static/latency.js"></script>
+{{end}}

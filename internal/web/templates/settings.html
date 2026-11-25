@@ -1,0 +1,16 @@
+{{define "settings"}}
+{{template "head" "探测设置"}}
+<div class="page-heading"><h1>探测设置</h1></div>
+{{if .Saved}}<p class="notice" role="status">设置已保存。</p>{{end}}
+{{if .Error}}<p class="notice" role="alert">{{.Error}}</p>{{end}}
+<form action="/settings" method="post" class="card panel">
+  <div class="form-grid">
+  {{range .Fields}}
+    <label>{{.Label}}（{{.Unit}}）<input type="number" name="{{.Key}}" min="{{.Min}}" max="{{.Max}}" step="1" value="{{.Value}}" required></label>
+  {{end}}
+  </div>
+  <p class="muted">间隔适用于所有已启用设备，常规间隔必须长于两项超时。新发现任务也使用保存后的超时。</p>
+  <button class="button primary" type="submit">保存设置</button>
+</form>
+{{template "foot"}}
+{{end}}

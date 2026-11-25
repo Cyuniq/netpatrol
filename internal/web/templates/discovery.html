@@ -1,0 +1,78 @@
+{{define "discovery"}}
+{{template "head" "网段发现"}}
+<div class="page-heading"><h1>添加设备</h1><a href="/devices">返回设备列表</a></div>
+<nav class="ingress" aria-label="添加方式"><a href="/devices/new">手动添加</a><a href="/imports/csv">CSV 导入</a><a aria-current="page" href="/discovery">网段发现</a></nav>
+{{if .Enabled}}
+<form action="/discovery" method="get" class="filters card">
+  <label>区域<select name="area"><option value="">全部已登记网段</option>{{range .Areas}}<option value="{{.ID}}" {{if eq .ID $.AreaID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+  <button class="button" type="submit">读取区域网段</button>
+</form>
+{{if .Message}}<p class="notice" role="alert">{{.Message}}</p>{{end}}
+<form action="/discovery/preview" method="post" class="filters card">
+  <input type="hidden" name="area" value="{{.AreaID}}">
+  <label>IPv4 网段或子网<input name="prefix" value="{{.Prefix}}" list="region-cidrs" required spellcheck="false" placeholder="192.0.2.0/24"></label>
+  <datalist id="region-cidrs">{{range .Networks}}<option value="{{.}}">{{end}}</datalist>
+  <label class="grow">TCP 端口（最多 16 个，用逗号或空格分隔）<input name="ports" value="{{.Ports}}" placeholder="22, 80, 443, 554, 3389" required></label>
+  <button class="button" type="submit">预览范围</button>
+</form>
+{{if .Plan.Total}}
+<section class="card panel">
+  <h2>确认发现范围</h2>
+  <p><span class="mono">{{.Plan.Prefix}}</span> · 预计探测 {{.Plan.Total}} 个地址 · TCP {{.Plan.PortText}} · {{.Plan.TCPChecks}} 次 TCP 连接</p>
+  <form action="/discovery" method="post">
+    <input type="hidden" name="area" value="{{.AreaID}}">
+    <input type="hidden" name="prefix" value="{{.Plan.Prefix}}">
+    <input type="hidden" name="ports" value="{{.Plan.PortText}}">
+    <button class="button primary" type="submit">开始发现</button>
+  </form>
+</section>
+{{end}}
+{{else}}<p class="notice">网段发现服务暂不可用。</p>{{end}}
+{{template "foot"}}
+{{end}}
+
+{{define "discovery-job"}}
+{{template "head" "发现任务"}}
+<script defer src="/static/discovery.js"></script>
+<div class="page-heading"><h1>发现任务 #{{.Job.ID}}</h1><a href="/discovery?area={{.Job.PreferredAreaID}}">新建发现任务</a></div>
+{{template "discovery-result" .}}
+{{template "foot"}}
+{{end}}
+
+{{define "discovery-result"}}
+{{$running := eq .Job.State "running"}}
+<div id="discovery-result" {{if $running}}hx-get="/discovery/{{.Job.ID}}" hx-trigger="every 2s" hx-swap="outerHTML"{{end}}>
+<section class="card panel">
+  <h2><span class="mono">{{.Job.Prefix}}</span> · TCP {{range $i, $port := .Job.Ports}}{{if $i}}, {{end}}{{$port}}{{end}}</h2>
+  <p>{{if $running}}运行中 · <a href="/discovery/{{.Job.ID}}">刷新进度</a>{{else if eq .Job.State "done"}}已完成{{else}}已中断{{end}}</p>
+  <progress max="{{.Job.Total}}" value="{{.Job.Completed}}" aria-label="发现进度"></progress>
+  <p>已完成 {{.Job.Completed}} / {{.Job.Total}} · 发现主机 {{.Job.CandidateCount}} · 本机错误 {{.Job.LocalErrors}}</p>
+  {{if .Job.Reason}}<p>{{.Job.Reason}}</p>{{end}}
+</section>
+{{if .Message}}<p class="notice" role="status">{{.Message}}</p>{{end}}
+<h2>候选设备</h2>
+{{if not $running}}<form action="/discovery/{{.Job.ID}}/confirm" method="post" data-discovery-selection>{{end}}
+{{if and .Rows (not $running)}}
+<div class="filters card">
+  <label>纳管区域<select name="area" required><option value="">请选择</option>{{range .Areas}}<option value="{{.ID}}" {{if eq .ID $.Job.PreferredAreaID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+  <button class="button" type="button" data-pick="new">选择全部新发现</button>
+  <button class="button" type="button" data-pick="both">仅选择双项通过</button>
+  <button class="button" type="button" data-pick="none">清空选择</button>
+  <button class="button primary" type="submit">确认添加 <span data-selection-count>0</span> 台</button>
+</div>
+{{end}}
+<div class="table-wrap"><table>
+<thead><tr>{{if not $running}}<th>选择</th>{{end}}<th>IP</th><th>名称</th><th>状态</th><th>Ping</th><th>TCP 端口结果</th>{{if not $running}}<th>纳管端口</th>{{end}}<th>纳管</th></tr></thead>
+<tbody>{{range .Rows}}<tr>
+{{if not $running}}<td>{{if not .Existing}}<input type="checkbox" name="selected" value="{{.Address}}" data-both="{{.Both}}" aria-label="选择 {{.Address}}">{{end}}</td>{{end}}
+<td class="mono">{{.Address}}</td>
+<td>{{if or $running .Existing}}—{{else}}<input name="name.{{.Address}}" placeholder="区域名-IP" aria-label="{{.Address}} 的设备名称">{{end}}</td>
+<td>{{.State}}</td><td>{{template "probe-result" .Probe.Ping}}{{with .Probe.Ping.Detail}}<small>{{.}}</small>{{end}}</td>
+<td>{{range .Probe.Ports}}<div><strong>{{.Port}}</strong> {{template "probe-result" .Result}}</div>{{end}}</td>
+{{if not $running}}<td>{{if .Existing}}—{{else}}{{$row := .}}<select name="port.{{.Address}}" aria-label="{{.Address}} 的纳管端口">{{range .Probe.Ports}}<option value="{{.Port}}" {{if eq .Port $row.PreferredPort}}selected{{end}}>{{.Port}} · {{result .Result}}</option>{{end}}</select>{{end}}</td>{{end}}
+<td>{{if .Existing}}已添加{{else}}未添加{{end}}</td></tr>
+{{else}}<tr><td class="empty" colspan="{{if $running}}6{{else}}8{{end}}">暂无候选设备</td></tr>{{end}}</tbody>
+</table></div>
+{{if not $running}}</form>{{end}}
+</div>
+{{end}}

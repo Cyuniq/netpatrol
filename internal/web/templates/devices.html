@@ -1,0 +1,104 @@
+{{define "devices"}}
+{{template "head" "设备监测"}}
+<div class="page-heading"><h1>设备监测</h1><a class="button primary" href="/devices/new?area={{.Filter.AreaID}}">添加设备</a></div>
+<form action="/devices" method="get" class="filters card">
+<input type="hidden" name="page_size" value="{{.PageSize}}">
+<label>区域<select name="area"><option value="">全部区域</option>{{range .Areas}}<option value="{{.ID}}" {{if eq .ID $.Filter.AreaID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+<label>状态<select name="state"><option value="">全部状态</option>{{range .States}}<option value="{{.}}" {{if eq . $.Filter.State}}selected{{end}}>{{state .}}</option>{{end}}</select></label>
+<label class="grow">关键字<input type="search" name="q" value="{{.Filter.Keyword}}" placeholder="设备名称、编号或 IP"></label>
+<label>趋势时长<select name="trend">{{range .TrendRanges}}<option value="{{.Key}}" {{if eq .Key $.Trend.Key}}selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+<button class="button" type="submit">筛选</button><a class="button" href="{{.Clear}}">清除</a>
+</form>
+{{if .Path}}<p class="path"><strong>区域路径</strong> {{.Path}}</p>{{end}}
+<nav aria-label="导出筛选结果"><a href="{{.AssetExport}}">导出资产 CSV</a><a href="{{.StatusExport}}">导出状态 CSV</a></nav>
+{{template "device-results" .}}<script defer src="/static/device-trends.js"></script>{{template "foot"}}{{end}}
+
+{{define "device-results"}}
+<div id="device-results" hx-get="{{.Refresh}}" hx-trigger="every 10s" hx-swap="outerHTML">
+{{if .ProbeErrors}}<div class="notice"><strong>ICMP 套接字异常</strong>{{range .ProbeErrors}}<div>{{.}}</div>{{end}}</div>{{end}}
+<h2>区域状态</h2>{{template "area-counts" .}}
+<div class="section-heading" id="device-list"><h2>设备列表</h2><span class="muted">{{.Trend.Label}} · 每点 {{.Trend.StepLabel}} · <span class="probe-timeout-key">红色底线表示时段内有超时</span></span><span class="muted">刷新于 {{when .Now}}</span></div>
+<nav class="device-pagination" aria-label="设备列表上方分页">{{template "device-pagination" .}}</nav>
+<div class="table-wrap"><table>
+<thead><tr><th>设备</th><th>区域</th><th>IP</th><th>端口</th><th>状态</th><th>Ping 探测</th><th>TCP 探测</th><th>近一小时 Ping 丢包</th><th>持续时间</th><th>最后探测</th><th>操作</th></tr></thead>
+<tbody>{{range .Rows}}{{$device := .}}<tr>
+<td><a href="/devices/{{.ID}}">{{.Name}}</a><small class="muted">{{.Code}}</small></td><td>{{.AreaName}}</td>
+<td class="mono">{{.Target.IP}}</td><td>{{.Target.Port}}</td><td><span class="status {{.Snapshot.State}}">{{state .Snapshot.State}}</span></td>
+<td class="probe-cell" data-protocol="ping">{{template "probe-result" .Snapshot.LastRound.Ping}}
+{{with .PingTrend}}<a class="probe-trend" href="/devices/{{$device.ID}}#latency-history" aria-label="查看 {{$device.Name}} 的 Ping 延迟趋势">{{template "probe-trend-canvas" .}}</a>{{end}}</td>
+<td class="probe-cell" data-protocol="tcp">{{template "probe-result" .Snapshot.LastRound.TCP}}
+{{with .TCPTrend}}<a class="probe-trend" href="/devices/{{$device.ID}}#latency-history" aria-label="查看 {{$device.Name}} 的 TCP 延迟趋势">{{template "probe-trend-canvas" .}}</a>{{end}}</td>
+<td>{{loss .Loss}}</td><td>{{age $.Now .Snapshot.Since}}</td><td>{{when .Snapshot.LastProbeTime}}</td>
+<td><div class="actions nowrap"><a href="/devices/{{.ID}}#edit-device" aria-label="修改设备 {{.Name}}">修改</a><a href="/devices/{{.ID}}/delete" class="action-danger" aria-label="删除设备 {{.Name}}">删除</a></div></td>
+</tr>{{else}}<tr><td class="empty" colspan="11">没有匹配的设备</td></tr>{{end}}</tbody></table></div>
+{{if gt .Pages 1}}<nav class="device-pagination" aria-label="设备列表下方分页">{{template "device-pagination" .}}</nav>{{end}}
+</div>{{end}}
+
+{{define "device-pagination"}}
+<span class="pagination-summary">{{if .Total}}显示第 {{.FirstRow}}–{{.LastRow}} 台 · {{end}}共 {{.Total}} 台</span>
+{{if gt .Pages 1}}
+<div class="pagination-links">
+{{if .Previous}}<a class="button" href="{{.Previous}}#device-list" rel="prev">上一页</a>{{end}}
+{{range .PageLinks}}
+{{if eq .Number $.Page}}<span class="pagination-current" aria-current="page" aria-label="第 {{.Number}} 页">{{.Number}}</span>
+{{else if .Number}}<a class="button" href="{{.URL}}#device-list" aria-label="第 {{.Number}} 页">{{.Number}}</a>
+{{else}}<span class="pagination-gap" aria-hidden="true">…</span>{{end}}
+{{end}}
+{{if .Next}}<a class="button" href="{{.Next}}#device-list" rel="next">下一页</a>{{end}}
+</div>
+{{end}}
+<div class="pagination-controls">
+<form method="get" action="/devices#device-list">
+{{template "device-pagination-filter" .}}
+<label>每页<select name="page_size" class="device-page-size">{{range .PageSizes}}<option value="{{.}}" {{if eq . $.PageSize}}selected{{end}}>{{.}} 台</option>{{end}}</select></label>
+<noscript><button class="button" type="submit">应用</button></noscript>
+</form>
+{{if gt .Pages 1}}
+<form method="get" action="/devices#device-list">
+{{template "device-pagination-filter" .}}
+<input type="hidden" name="page_size" value="{{.PageSize}}">
+<label>页码<input name="page" type="number" min="1" max="{{.Pages}}" step="1" placeholder="{{.Page}}" required></label>
+<button class="button" type="submit">跳转</button>
+</form>
+{{end}}
+</div>
+{{end}}
+
+{{define "device-pagination-filter"}}
+{{if .Filter.AreaID}}<input type="hidden" name="area" value="{{.Filter.AreaID}}">{{end}}
+{{if .Filter.State}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
+{{if .Filter.Keyword}}<input type="hidden" name="q" value="{{.Filter.Keyword}}">{{end}}
+{{if .TrendKey}}<input type="hidden" name="trend" value="{{.TrendKey}}">{{end}}
+{{end}}
+
+{{define "probe-trend-canvas"}}<canvas width="224" height="52" aria-hidden="true" data-probe-trend="{{trend .}}"></canvas>{{end}}
+
+{{define "device"}}
+{{template "head" "设备详情"}}
+<div class="page-heading"><h1>{{if .ID}}{{.View.Name}}{{else}}添加设备{{end}}</h1><a href="/devices">返回设备列表</a></div>
+{{if not .ID}}<nav class="ingress" aria-label="添加方式"><a aria-current="page" href="/devices/new">手动添加</a><a href="/imports/csv">CSV 导入</a><a href="/discovery?area={{.Input.AreaID}}">网段发现</a></nav>{{end}}
+{{if .ID}}<section class="card panel">
+<h2><span class="status {{.View.Snapshot.State}}">{{state .View.Snapshot.State}}</span> <span class="mono">{{.View.Target.IP}} / {{.View.Target.Port}}</span></h2>
+<dl class="details">
+<div><dt>所属区域</dt><dd><a href="/devices?area={{.View.AreaID}}">{{.View.AreaName}}</a></dd></div>
+<div><dt>区域路径</dt><dd>{{if .View.AreaPath}}{{.View.AreaPath}}{{else}}—{{end}}</dd></div>
+<div><dt>状态持续时间</dt><dd>{{age .Now .View.Snapshot.Since}}</dd></div><div><dt>最后探测</dt><dd>{{when .View.Snapshot.LastProbeTime}}</dd></div>
+<div><dt>实际间隔 / 计划间隔</dt><dd>{{duration .View.Snapshot.ActualInterval}} / {{duration .View.Snapshot.Interval}}</dd></div>
+<div><dt>近一小时 Ping 丢包</dt><dd>{{loss .View.Loss}}</dd></div>
+<div><dt>最近一次 Ping</dt><dd>{{template "probe-result" .View.Snapshot.LastRound.Ping}}{{with .View.Snapshot.LastRound.Ping.Detail}}<small>{{.}}</small>{{end}}<small>最近成功 {{when .View.Snapshot.PingLastSuccess}}</small></dd></div>
+<div><dt>最近一次 TCP</dt><dd>{{template "probe-result" .View.Snapshot.LastRound.TCP}}{{with .View.Snapshot.LastRound.TCP.Detail}}<small>{{.}}</small>{{end}}<small>最近成功 {{when .View.Snapshot.TCPLastSuccess}}</small></dd></div>
+</dl></section>
+{{template "latency" (printf "/devices/%d/latency" .ID)}}
+<div class="section-heading" id="edit-device"><h2>修改设备</h2><a href="/devices/{{.ID}}/delete" class="action-danger">删除设备</a></div>{{end}}
+{{if .Error}}<div class="notice" role="alert">{{.Error}}</div>{{end}}
+<form class="card panel form-grid" method="post" action="{{if .ID}}/devices/{{.ID}}{{else}}/devices{{end}}">
+<label>设备编号<input name="code" value="{{.Input.Code}}" placeholder="留空自动分配" {{if .ID}}readonly{{end}}></label>
+<label>名称<input name="name" value="{{.Input.Name}}" required></label>
+<label>区域<select name="area"><option value="">按 IP 自动匹配</option>{{range .Areas}}<option value="{{.ID}}" {{if eq .ID $.Input.AreaID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+<label>IP 地址<input name="address" value="{{.Input.Address}}" required spellcheck="false"></label>
+<label>TCP 端口<input type="number" name="port" min="1" max="65535" value="{{.Input.Port}}" required></label>
+<label class="check"><input type="checkbox" name="enabled" {{if .Input.Enabled}}checked{{end}}>启用探测</label>
+<div><button class="button primary" type="submit">保存设备</button></div></form>
+{{if .ID}}<div class="section-heading"><h2>状态变化</h2><a href="/events?device={{.ID}}">查看全部</a></div>{{template "event-table" .Events}}{{end}}
+{{template "foot"}}{{end}}
+

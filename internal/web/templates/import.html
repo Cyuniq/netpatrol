@@ -1,0 +1,28 @@
+{{define "import"}}
+{{template "head" "CSV 导入"}}
+<div class="page-heading"><h1>添加设备</h1><a href="/devices">返回设备列表</a></div>
+<nav class="ingress" aria-label="添加方式"><a href="/devices/new">手动添加</a><a aria-current="page" href="/imports/csv">CSV 导入</a><a href="/discovery">网段发现</a></nav>
+<form action="/imports/csv/preview" method="post" enctype="multipart/form-data" class="filters card">
+  <label>CSV 文件<input required type="file" name="file" accept=".csv,text/csv"></label>
+  <label>导入模式<select name="mode"><option value="add">仅新增</option><option value="update" {{if .Update}}selected{{end}}>新增并更新</option></select></label>
+  <button class="button primary" type="submit">生成预览</button>
+  <a href="/static/template.csv" download="netpatrol-template.csv">下载 CSV 模板</a>
+</form>
+{{if .Message}}<p class="notice" role="status">{{.Message}}</p>{{end}}
+{{if .Entries}}
+<div class="section-heading"><h2>{{if .Committed}}导入结果{{else}}导入预览{{end}}</h2><span>新增 {{.Added}} · 更新 {{.Updated}} · 跳过 {{.Skipped}} · 错误 {{.Errors}}</span></div>
+{{if .Token}}
+<form action="/imports/csv/confirm" method="post" class="filters card">
+  <input type="hidden" name="token" value="{{.Token}}">
+  <button class="button primary" type="submit">确认导入 {{.Applicable}} 台</button>
+  {{if .Errors}}<span class="muted">确认后仅处理预览中标为新增或更新的记录。</span>{{end}}
+</form>
+{{end}}
+<div class="table-wrap"><table>
+<thead><tr><th>行号</th><th>设备编号</th><th>名称</th><th>区域</th><th>IP</th><th>端口</th><th>处理</th><th>说明</th></tr></thead>
+<tbody>{{range .Entries}}<tr><td>{{.Line}}</td><td>{{.Code}}</td><td>{{.Name}}</td><td>{{.Area}}</td>
+<td class="mono">{{.Address}}</td><td>{{.Port}}</td><td>{{.Action}}</td><td>{{.Message}}</td></tr>{{end}}</tbody>
+</table></div>
+{{end}}
+{{template "foot"}}
+{{end}}

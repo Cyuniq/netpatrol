@@ -1,0 +1,8 @@
+/dist/
+/netpatrol
+/netpatrol.exe
+*.db
+*.db-shm
+*.db-wal
+netpatrol.env
+__pycache__/

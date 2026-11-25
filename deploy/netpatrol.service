@@ -1,0 +1,28 @@
+[Unit]
+Description=NetPatrol camera monitoring service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=netpatrol
+Group=netpatrol
+EnvironmentFile=/etc/netpatrol/netpatrol.env
+StateDirectory=netpatrol
+StateDirectoryMode=0750
+WorkingDirectory=/var/lib/netpatrol
+ExecStart=/usr/local/bin/netpatrol -listen 127.0.0.1:8080 -db /var/lib/netpatrol/netpatrol.db
+Restart=on-failure
+RestartSec=3s
+LimitNOFILE=16384
+UMask=0027
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target
