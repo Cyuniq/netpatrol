@@ -1,13 +1,9 @@
-(() => {
-  const panel = document.querySelector("#latency-history");
-  if (!panel) return;
-
+function initLatencyPanel(panel, {isPath, now, read, live}) {
   const form = panel.querySelector("form");
   const fields = form.elements;
   const chartHost = panel.querySelector(".latency-chart");
   const summary = panel.querySelector("[data-summary]");
   const errorBox = panel.querySelector("[data-error]");
-  const isPath = panel.dataset.url.startsWith("/paths/");
   const minute = 60000;
   const maxRange = 30 * 24 * 60 * minute;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -209,10 +205,7 @@
       chartHost.hidden = true;
     }
     try {
-      const response = await fetch(`${panel.dataset.url}?${query}`, {signal: controller.signal});
-      if (response.status === 400) throw new Error((await response.text()).trim());
-      if (!response.ok) throw new Error("无法读取延迟历史，请重试。");
-      const data = await response.json();
+      const data = await read(query, controller.signal);
       if (!controller.signal.aborted) {
         hopOptions(data.hops ?? [], range.hop);
         draw(data, range.hop, resetZoom);
@@ -243,7 +236,6 @@
     showError("图表组件加载失败，请刷新页面。");
     return;
   }
-  const now = Number(panel.dataset.serverNow);
   fields.from.value = localInput(now - 60 * minute);
   fields.to.value = localInput(now);
   form.querySelector("[data-hop]").hidden = !isPath;
@@ -261,12 +253,34 @@
     applied = {...applied, hop: fields.hop.value};
     load(applied, true);
   });
-  document.body.addEventListener("path-latency-recorded", () => {
-    if (applied?.minutes) load(applied, false);
-  });
-  setInterval(() => {
-    if (applied?.minutes && !document.hidden && !request) load(applied, false);
-  }, minute);
-  new ResizeObserver(() => chart?.resize()).observe(chartHost);
+  if (live) {
+    document.body.addEventListener("path-latency-recorded", () => {
+      if (applied?.minutes) load(applied, false);
+    });
+    setInterval(() => {
+      if (applied?.minutes && !document.hidden && !request) load(applied, false);
+    }, minute);
+  }
+  const observer = new ResizeObserver(() => chart?.resize());
+  observer.observe(chartHost);
   apply();
+  return () => {
+    request?.abort();
+    observer.disconnect();
+    chart?.dispose();
+  };
+}
+
+(() => {
+  const panel = document.querySelector("#latency-history[data-url]");
+  if (!panel) return;
+  initLatencyPanel(panel, {
+    isPath: panel.dataset.url.startsWith("/paths/"), now: Number(panel.dataset.serverNow), live: true,
+    async read(query, signal) {
+      const response = await fetch(`${panel.dataset.url}?${query}`, {signal});
+      if (response.status === 400) throw new Error((await response.text()).trim());
+      if (!response.ok) throw new Error("无法读取延迟历史，请重试。");
+      return response.json();
+    }
+  });
 })();

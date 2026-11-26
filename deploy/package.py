@@ -140,6 +140,7 @@ def main():
         go_root = Path(go("env", "GOROOT", capture=True).strip())
         shutil.copyfile(go_root / "LICENSE", licenses / "go-LICENSE")
         shutil.copyfile(root / "internal/web/static/htmx-LICENSE.txt", licenses / "htmx-LICENSE.txt")
+        shutil.copyfile(root / "internal/web/offline/sql-js-LICENSE.txt", licenses / "sql-js-LICENSE.txt")
         for filename in ("echarts-LICENSE.txt", "echarts-NOTICE.txt"):
             shutil.copyfile(root / "internal/web/static" / filename, licenses / filename)
 

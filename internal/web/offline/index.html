@@ -1,0 +1,36 @@
+{{define "offline"}}<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'wasm-unsafe-eval'; style-src 'self' file: 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>离线数据查询 · 网巡 NetPatrol</title>
+<link rel="stylesheet" href="assets/app.css">
+<style>[hidden]{display:none!important} .top button{margin:.35rem 0} #sql{width:100%;font-family:monospace} #records td{max-width:36rem;overflow-wrap:anywhere;white-space:pre-wrap} #tabs{flex-wrap:wrap} #tabs [aria-pressed=true]{background:var(--accent);color:white}</style>
+<script defer src="assets/sql-wasm-inline.js"></script><script defer src="assets/echarts.min.js"></script>
+<script defer src="assets/latency.js"></script><script defer src="assets/queries.js"></script><script defer src="assets/viewer.js"></script>
+</head><body data-at="{{.}}">
+<header class="top"><div class="wrap top-inner"><strong class="brand">网巡 <span>NetPatrol</span></strong>离线数据查询</div></header>
+<main class="wrap"><h1>监测数据快照</h1>
+<div class="filters card"><label>选择解压目录中的 netpatrol.db<input type="file" id="file" accept=".db,.sqlite,.sqlite3"></label>
+<span id="info" role="status"></span></div><noscript>请启用 JavaScript 以查询数据。</noscript>
+<p id="error" class="notice" hidden role="alert"></p>
+<section id="workspace" hidden>
+<nav id="tabs" aria-label="查询内容">
+<button class="button" data-tab="devices">设备</button><button class="button" data-tab="paths">路径</button>
+<button class="button" data-tab="events">状态记录</button><button class="button" data-tab="tables">数据表与 SQL</button>
+</nav>
+<h2 id="heading"></h2>
+<form id="filters" class="filters card">
+<label id="keyword-label">名称、编号或 IP<input type="search" name="keyword"></label>
+<label id="area-label">区域<select name="area"></select></label>
+<label id="state-label">状态<select name="state"></select></label>
+<label id="from-label">起始日期<input type="date" name="from"></label><label id="to-label">结束日期<input type="date" name="to"></label>
+<button class="button" type="submit">查询</button></form>
+<form id="workbench" class="card panel" hidden>
+<label>浏览数据表<select id="tables"></select></label><label>只读 SQL 查询<textarea id="sql" rows="4" spellcheck="false"></textarea></label>
+<button type="submit" class="button">执行查询</button></form>
+<div id="records" class="table-wrap"></div>
+<nav class="device-pagination" aria-label="查询结果分页"><button class="button" id="prev">上一页</button><span id="count"></span><button class="button" id="next">下一页</button></nav>
+<section id="detail" hidden><div class="section-heading"><h2 id="detail-name"></h2><button id="close" class="button">收起详情</button></div>
+<div id="chart"></div><div id="extra"></div></section>
+</section>
+<template id="trend-template">{{template "latency-panel" ""}}</template>
+</main></body></html>{{end}}

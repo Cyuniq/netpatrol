@@ -1,4 +1,10 @@
 {{define "latency"}}
+{{template "latency-panel" .}}
+<script defer src="/static/echarts.min.js"></script>
+<script defer src="/static/latency.js"></script>
+{{end}}
+
+{{define "latency-panel"}}
 <section id="latency-history" class="card panel latency-panel" data-url="{{.}}" data-server-now="{{nowMillis}}">
   <h2>延迟趋势</h2>
   <form class="latency-controls" hidden>
@@ -23,6 +29,4 @@
   <div class="latency-chart" role="img" aria-label="探测延迟与未回应趋势图（延迟单位毫秒）" hidden></div>
   <noscript><p class="notice">请启用 JavaScript 以查看延迟趋势。</p></noscript>
 </section>
-<script defer src="/static/echarts.min.js"></script>
-<script defer src="/static/latency.js"></script>
 {{end}}

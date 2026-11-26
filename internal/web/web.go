@@ -26,7 +26,7 @@ import (
 	"netpatrol/internal/telemetry"
 )
 
-//go:embed templates/*.html static/*
+//go:embed templates/*.html static/* offline/*
 var files embed.FS
 
 var states = []monitor.State{monitor.Healthy, monitor.Partial, monitor.Down, monitor.Unknown, monitor.Disabled}
@@ -37,6 +37,7 @@ type application struct {
 	previews  previewCache
 	discovery *discovery.Manager
 	pathMu    sync.Mutex
+	exportMu  sync.Mutex
 	lastPath  time.Time
 }
 
@@ -54,7 +55,7 @@ func Handler(db *store.Store, password string, probeErrors []string, discover *d
 			encoded, err := json.Marshal(points)
 			return string(encoded), err
 		},
-	}).ParseFS(files, "templates/*.html")
+	}).ParseFS(files, "templates/*.html", "offline/index.html")
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +88,7 @@ func Handler(db *store.Store, password string, probeErrors []string, discover *d
 	mux.HandleFunc("GET /discovery/{id}", app.discoveryJob)
 	mux.HandleFunc("POST /discovery/{id}/confirm", app.confirmDiscovery)
 	mux.HandleFunc("GET /exports/{kind}", app.exportDevices)
+	mux.HandleFunc("POST /exports/offline", app.exportOffline)
 	mux.HandleFunc("POST /devices", app.saveDevice)
 	mux.HandleFunc("GET /devices/{id}", app.device)
 	mux.HandleFunc("GET /devices/{id}/latency", app.latency(false))

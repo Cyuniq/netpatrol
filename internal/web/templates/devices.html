@@ -11,6 +11,10 @@
 </form>
 {{if .Path}}<p class="path"><strong>区域路径</strong> {{.Path}}</p>{{end}}
 <nav aria-label="导出筛选结果"><a href="{{.AssetExport}}">导出资产 CSV</a><a href="{{.StatusExport}}">导出状态 CSV</a></nav>
+<form action="/exports/offline" method="post" class="section-heading">
+  <button class="button" type="submit">导出完整离线浏览包</button>
+  <span class="muted">包含全部区域和已保留的历史，可在其他电脑上解压后用浏览器查看。</span>
+</form>
 {{template "device-results" .}}<script defer src="/static/device-trends.js"></script>{{template "foot"}}{{end}}
 
 {{define "device-results"}}

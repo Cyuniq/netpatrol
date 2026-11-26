@@ -1,4 +1,6 @@
 # The embedded download is a byte-for-byte UTF-8 BOM / CRLF CSV.
 internal/web/static/template.csv -text
+# Keep the upstream bundled SQLite runtime byte-identical on every platform.
+internal/web/offline/sql-wasm-inline.js binary
 *.sh text eol=lf
 deploy/debian/* text eol=lf
